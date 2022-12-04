@@ -1,4 +1,10 @@
 #include <WiFiNINA.h>
+#include <Adafruit_NeoPixel.h>
+
+
+#define PIN        12
+#define NUM_PIXELS 300
+Adafruit_NeoPixel strip(NUM_PIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
 char ssid[] ="";
 char pass[] ="";
@@ -9,11 +15,15 @@ WiFiServer server(80);
 WiFiClient client = server.available();
 
 int ledPin = 2;
-
+int action = 0;
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   pinMode(ledPin,OUTPUT);
+  strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
+  strip.show();            // Turn OFF all pixels ASAP
+  strip.setBrightness(50); // Set BRIGHTNESS to about 1/5 (max = 255)
+
   while(!Serial);
 
   enable_WiFi();
@@ -21,6 +31,8 @@ void setup() {
 
   server.begin();
   printWifiStatus();
+
+  
 }
 
 void loop() {
@@ -29,6 +41,10 @@ void loop() {
   if(client)
   {
     printWEB();
+  }
+  if(action ==1)
+  {
+    Strand();
   }
 }
 
@@ -89,7 +105,6 @@ void printWEB()
 {
   if(client)
   {
-    Serial.println("new client");
     String currentLine = "";
     while (client.connected())
     {
@@ -107,6 +122,7 @@ void printWEB()
 
             client.print("Click <a href=\"/H\">here</a> turn the LED on <br>");
             client.print("Click <a href=\"/L\">here</a> turn the LED off<br><br>");
+            client.print("Click <a href=\"/L\">here</a> turn the LEDS ON<br><br>");
 
             int randomReading = analogRead(A1);
             client.print("Random reading from analog pin:");
@@ -126,12 +142,15 @@ void printWEB()
         }
         if (currentLine.endsWith("GET /H"))
         {
-          digitalWrite(ledPin,HIGH);
+          //digitalWrite(ledPin,HIGH);
+          action = 1;
         }
         if (currentLine.endsWith("GET /L"))
         {
           digitalWrite(ledPin,LOW);
+          action = 0;
         }
+        
       }
     }
     client.stop();
@@ -139,6 +158,19 @@ void printWEB()
   }
 }
 
+void Strand()
+{
+  colorWipe(strip.Color(255,   0,   0), 50); // Red
+  colorWipe(strip.Color(  0, 255,   0), 50); // Green
+  colorWipe(strip.Color(  0,   0, 255), 50); // Blue
+}
 
 
+void colorWipe(uint32_t color, int wait) {
+  for(int i=0; i<strip.numPixels(); i++) { // For each pixel in strip...
+    strip.setPixelColor(i, color);         //  Set pixel's color (in RAM)
+    strip.show();                          //  Update strip to match
+    delay(wait);                           //  Pause for a moment
+  }
+}
 
