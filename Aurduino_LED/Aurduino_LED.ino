@@ -2,7 +2,7 @@
 #include <Adafruit_NeoPixel.h>
 #include <SPI.h>
 #define PIN 12
-#define NUM_PIXELS 300
+#define NUM_PIXELS 240
 Adafruit_NeoPixel strip(NUM_PIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
 
@@ -15,21 +15,23 @@ WiFiServer server(80);
 WiFiClient client = server.available();
 
 int ledPin = 2;
+// The action that we want the LEDs to do.
 int action = 0;
 
 const char data[] = "<!DOCTYPE HTML><html><head><title>TEST</title> \
 </head><body> \
 <p>Select Light Sequence Option:</p> \
 <form action =\"/\" method =\"post\"> \
-  <label for=\"cars\">Choose a car:</label> \
-  <select name=\"cars\" id=\"cars\"> \
-    <optgroup label=\"Swedish Cars\"> \
-      <option value=\"volvo\">Volvo</option> \
-      <option value=\"saab\">Saab</option> \
+  <label for=\"Sequences\">Choose a Sequence:</label> \
+  <select name=\"Sequence\" id=\"Sequence\"> \
+    <optgroup label=\"Normal Sequences\"> \
+      <option value=\"Intro Sweep\">Intro Sweep</option> \
+      <option value=\"SlowRGB\">Slow RGB</option> \
+      <option value=\"OFF\">OFF</option \
     </optgroup> \
-    <optgroup label=\"German Cars\"> \
-      <option value=\"mercedes\">Mercedes</option> \
-      <option value=\"audi\">Audi</option> \
+    <optgroup label=\"Favorite Colors\"> \
+      <option value=\"Mark\">Mark</option> \
+      <option value=\"Tajh\">Tajh</option> \
     </optgroup> \
   </select> \
   <br><br> \
@@ -68,9 +70,13 @@ void loop() {
   if (client) {
     printWEB();
   }
-  //if (action == 1) {
-  //  Strand();
-  //}
+  if (action == 1) {
+    Strand();
+  }
+  if(action==2)
+  {
+    TurnOFF();
+  }
 }
 
 void connect_WiFi() {
@@ -159,11 +165,28 @@ void printWEB() {
       strlcpy(postParameter,lineBuffer, smallbuffersize);
     }    
     Serial.println();
-    Serial.print(F("postParameter"));
-    Serial.println(postParameter);
-     //Do special checks here for what the POST REquest was. 
-    Serial.print("URI: ");
-    Serial.println(uri);     
+    Serial.print(F("postParameter:")); Serial.println(postParameter);
+     //Do special checks here for what the POST REquest was.
+     if(strncmp(postParameter, "Sequence",8) == 0)
+     {
+       Serial.println("GOT A SEQUNCE");
+       // Get the postion of the '=' which comes after the word Sequence
+       const char * ptr = strchr(postParameter, '=');
+       // check to make sure pointer is not NULL
+       if(ptr !=NULL)
+       {
+         size_t pos = ptr - postParameter +1;
+         if(strncmp(postParameter + pos, "SlowRGB",7)==0)
+         {
+           action = 1;
+         }
+         if(strncmp(postParameter+pos,"OFF",3)==0)
+         {
+           action = 2;
+         }
+      }
+     }
+      
     if(!strcmp(uri, "/"))
     {
       client.write(data);    
@@ -177,6 +200,10 @@ void Strand() {
   colorWipe(strip.Color(255, 0, 0), 50);  // Red
   colorWipe(strip.Color(0, 255, 0), 50);  // Green
   colorWipe(strip.Color(0, 0, 255), 50);  // Blue
+}
+void TurnOFF()
+{
+  colorWipe(strip.Color(0, 0, 0), 50);  // Red  
 }
 
 
