@@ -6,8 +6,8 @@
 Adafruit_NeoPixel strip(NUM_PIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
 
-char ssid[] = "Valar_Morgules";
-char pass[] = "Dohaeris__Valar2008!";
+char ssid[] = "";
+char pass[] = "";
 int keyIndex = 0;
 int status = WL_IDLE_STATUS;
 WiFiServer server(80);
@@ -85,29 +85,92 @@ void connect_WiFi() {
 }
 
 void printWEB() {
+  // Set up the state machine
+  uint8_t i = 0;
+  const uint16_t buffersize = 100;
+  const uint16_t smallbuffersize = 30;
+  char lineBuffer[buffersize] {'\0'};
+  char method[8]; // Used to find the method of the Request (GET/POST etc)
+  char uri[smallbuffersize];
+  char requestParameter[smallbuffersize];
+  char postParameter[smallbuffersize];
+  enum class Status {REQUEST,CONTENT_LENGTH, EMPTY_LINE, BODY};
+  Status status = Status::REQUEST;
+  
   // Check if the client is still connected
   String currentLine = "";
   while (client.connected()) {
-    if (client.available()) {
+    while (client.available()) {
       char c = client.read();
       Serial.write(c);
       if (c == '\n') {
         if (currentLine.length() == 0) {
-          // Write our HTML page to the Client.
-          client.write(data);
-          break;
+          if(status == Status::REQUEST)
+          {
+            char *ptr;
+            ptr = strtok(lineBuffer, " ");
+            strlcpy(method, ptr, smallbuffersize);
+            Serial.print(F("method=")); Serial.println(method);
+            ptr = strtok(NULL, " ");
+            strlcpy(uri, ptr, smallbuffersize);
+
+            if (strchr(uri, '?') != NULL)
+            {
+              ptr = strtok(uri, "?");  // split URI from parameters
+              strcpy(uri, ptr);
+              ptr = strtok(NULL, " ");
+              strcpy(requestParameter, ptr);
+              Serial.print(F("requestParameter=")); Serial.println(requestParameter);              
+            }
+            Serial.print(F("uri=")); Serial.println(uri);
+            status = Status::EMPTY_LINE;
+          }
+          else if(status == Status::CONTENT_LENGTH)                                
+          {
+            status = Status::EMPTY_LINE;            
+          }
+          else if(status > Status::REQUEST && i <2)
+          {
+            status = Status::BODY;
+          }
+          else if(status == Status::BODY)
+          {
+            strlcpy(postParameter, lineBuffer, smallbuffersize);
+            break;
+          }
+          i=0;
+          strcpy(lineBuffer, "");
         } else {
           currentLine = "";
         }
-      } else if (c != '\r') {
-        currentLine += c;
       }
-      if (currentLine.endsWith("POST /H")) {
-        Serial.println("GOT POST");
+       else 
+      {
+        if( i< buffersize)
+        {
+            lineBuffer[i] = c;
+            i++;
+            lineBuffer[i] = '\0';          
+        }        
       }
     }
+    if(status == Status::BODY)
+    {
+      strlcpy(postParameter,lineBuffer, smallbuffersize);
+    }    
+    Serial.println();
+    Serial.print(F("postParameter"));
+    Serial.println(postParameter);
+     //Do special checks here for what the POST REquest was. 
+    Serial.print("URI: ");
+    Serial.println(uri);     
+    if(!strcmp(uri, "/"))
+    {
+      client.write(data);    
+    }
+    delay(50);
+    client.stop();
   }
-  client.stop();
 }
 
 void Strand() {
@@ -124,3 +187,6 @@ void colorWipe(uint32_t color, int wait) {
     delay(wait);                                 //  Pause for a moment
   }
 }
+
+
+//client.write(data);
