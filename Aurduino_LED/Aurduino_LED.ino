@@ -1,6 +1,7 @@
 #include <WiFiNINA.h>
 #include <Adafruit_NeoPixel.h>
 #include <SPI.h>
+#include <String.h>
 #define PIN 12
 #define NUM_PIXELS 240
 Adafruit_NeoPixel strip(NUM_PIXELS, PIN, NEO_GRB + NEO_KHZ800);
@@ -10,6 +11,8 @@ char ssid[] = "";
 char pass[] = "";
 int keyIndex = 0;
 int status = WL_IDLE_STATUS;
+
+int16_t m_R,m_G,m_B = 0;
 WiFiServer server(80);
 
 WiFiClient client = server.available();
@@ -25,7 +28,7 @@ const char data[] = "<!DOCTYPE HTML><html><head><title>TEST</title> \
   <label for=\"Sequences\">Choose a Sequence:</label> \
   <select name=\"Sequence\" id=\"Sequence\"> \
     <optgroup label=\"Normal Sequences\"> \
-      <option value=\"Intro Sweep\">Intro Sweep</option> \
+      <option value=\"IntroSweep\">Intro Sweep</option> \
       <option value=\"SlowRGB\">Slow RGB</option> \
       <option value=\"OFF\">OFF</option \
     </optgroup> \
@@ -35,6 +38,11 @@ const char data[] = "<!DOCTYPE HTML><html><head><title>TEST</title> \
     </optgroup> \
   </select> \
   <br><br> \
+  <input type=\"submit\" value=\"Submit\"> \
+</form> \
+<form action =\"/\" method =\"post\"> \
+  <label for=\"favcolor\">Select your favorite color:</label> \
+  <input type=\"color\" id=\"favcolor\" name=\"favcolor\" value=\"#ff0000\"> \
   <input type=\"submit\" value=\"Submit\"> \
 </form> \
 </body></html>";
@@ -67,15 +75,26 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   client = server.available();
-  if (client) {
+  if (client) 
+  {
     printWEB();
   }
-  if (action == 1) {
+  if (action == 1)
+  {
     Strand();
   }
   if(action==2)
   {
     TurnOFF();
+  }
+  
+  if(action==3)
+  {
+    IntroSweep();
+  }
+  if(action==4)
+  {
+    OneColor(m_R,m_G,m_B);
   }
 }
 
@@ -184,7 +203,54 @@ void printWEB() {
          {
            action = 2;
          }
+         if(strncmp(postParameter+pos,"IntroSweep",10) ==0)
+         {
+           action = 3;
+         }
       }
+     }
+     if(strncmp(postParameter, "favcolor",8)==0)
+     {
+       Serial.println("Got a Favorite Color");
+        action = 4;
+        const char * ptr = strchr(postParameter, '=');
+        if(ptr !=NULL)
+        {
+          size_t pos = ptr - postParameter +4;
+          Serial.println(pos);
+          //char postParameter[smallbuffersize];
+          char R[2]{}; 
+          char blh[2]{};
+          char B[2]{};
+          char full[6]{};
+
+          strlcpy(blh,postParameter+pos,3);
+          Serial.print("Blh: ");
+          Serial.println(blh);
+          int8_t val = atoi(blh);
+          Serial.println(val);
+          pos  = pos +2;
+          strlcpy(R,postParameter+pos,3);
+          Serial.print("R: ");
+          Serial.println(R);
+          pos  = pos +2;
+          strlcpy(B,postParameter+pos,3);
+          Serial.print("B: ");
+          Serial.println(B);
+
+          strlcpy(full,postParameter+pos,7);
+          Serial.print("full:");
+          Serial.println(full);
+          char * end;
+        int16_t var = strtol(blh,&end,16);
+        Serial.print("VAL: ");
+        Serial.println(var);
+
+          if(strcmp(R,"ff") == 0)
+          {
+            Serial.println("GOT LOWER");
+          }     
+        }
      }
       
     if(!strcmp(uri, "/"))
@@ -206,7 +272,24 @@ void TurnOFF()
   colorWipe(strip.Color(0, 0, 0), 50);  // Red  
 }
 
-
+void IntroSweep()
+{
+  // Sweep through the favorite colors of the players before the game starts.
+  //NOTE: currently a new command will not be heard until a the current sequnece that is running is finished. 
+  //Do Tahj First.
+  colorWipe(strip.Color(253,238,0),25); // Auerolin Yellow.
+  // Then do Andrew
+  colorWipe(strip.Color(32,69,1),25);
+  // Then do Christine
+  colorWipe(strip.Color(3,198,252),25);
+  // Then do Me
+  colorWipe(strip.Color(204,85,0),25);
+  
+}
+void OneColor(int16_t R, int16_t G, int16_t B){
+  //colorWipe(strip.Color(R,G,B,),50);
+  
+}
 void colorWipe(uint32_t color, int wait) {
   for (int i = 0; i < strip.numPixels(); i++) {  // For each pixel in strip...
     strip.setPixelColor(i, color);               //  Set pixel's color (in RAM)
